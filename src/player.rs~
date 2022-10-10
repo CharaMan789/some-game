@@ -1,0 +1,95 @@
+use crate::{Box1, GameState};
+use bevy::{prelude::*, sprite::collide_aabb::collide};
+pub struct PlayerPlugin;
+
+#[derive(Component)]
+pub struct Checkbox;
+
+#[derive(Component)]
+pub struct Player;
+
+impl Plugin for PlayerPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_startup_system(spawn_player)
+            .add_system(player_movement.label("Movement"))
+            .add_system(collision_check_1);
+    }
+}
+
+fn spawn_player(mut commands: Commands, assets: Res<AssetServer>) {
+    let image = "pngg.png";
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            texture: assets.load(image),
+            transform: Transform {
+                scale: Vec3::new(0.2, 0.2, 1.0),
+                translation: Vec3::new(0.0, -100.0, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Player);
+}
+
+fn player_movement(mut player_query: Query<&mut Transform, With<Player>>, kb: Res<Input<KeyCode>>) {
+    for mut transform in player_query.iter_mut() {
+        if kb.pressed(KeyCode::Up) {
+            transform.translation.y += 1.0;
+        }
+        if kb.pressed(KeyCode::Down) {
+            transform.translation.y -= 1.0;
+        }
+        if kb.pressed(KeyCode::Left) {
+            transform.translation.x -= 1.0;
+        }
+        if kb.pressed(KeyCode::Right) {
+            transform.translation.x += 1.0;
+        }
+    }
+}
+
+fn collision_check_1(
+    player_query: Query<&Transform, (With<Player>, Without<Box1>)>,
+    box1_query: Query<&Transform, (With<Box1>, Without<Player>)>,
+    kb: Res<Input<KeyCode>>,
+    mut commands: Commands,
+    audio: Res<Audio>,
+    asset_server: Res<AssetServer>,
+    mut state: ResMut<State<GameState>>,
+) {
+    let mut b = false;
+    for ptf in player_query.iter() {
+        for b1 in box1_query.iter() {
+            let collision = collide(
+                ptf.translation,
+                Vec2::new(30.0, 15.0),
+                b1.translation,
+                Vec2::splat(15.0),
+            );
+            if collision.is_some() && kb.pressed(KeyCode::E) {
+                println!("Collision");
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        sprite: Sprite {
+                            color: Color::Rgba {
+                                red: 0.0,
+                                green: 0.0,
+                                blue: 0.0,
+                                alpha: 1.0,
+                            },
+                            ..default()
+                        },
+                        transform: Transform {
+                            scale: Vec3::new(15.0, 15.0, 15.0),
+                            translation: b1.translation,
+                            ..default()
+                        },
+                        ..default()
+                    })
+                    .insert(Checkbox);
+                //state.set(GameState::Letter).expect("Error changing to letter state");
+            }
+        }
+    }
+}
